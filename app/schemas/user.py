@@ -1,0 +1,35 @@
+from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional, List
+from uuid import UUID
+from datetime import datetime
+
+class UserBase(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    is_active: bool = True
+
+class UserCreate(UserBase):
+    password: str
+    roles: Optional[List[str]] = None
+
+class UserUpdate(UserBase):
+    password: Optional[str] = None
+
+# Role schemas
+class RoleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class Role(RoleBase):
+    id: UUID
+    model_config = ConfigDict(from_attributes=True)
+
+class User(UserBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    is_deleted: bool
+    roles: List[Role] = []
+
+    model_config = ConfigDict(from_attributes=True)
+

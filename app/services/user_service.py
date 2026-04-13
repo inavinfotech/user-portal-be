@@ -1,0 +1,71 @@
+from sqlalchemy.orm import Session
+from app.models.user import User
+from app.schemas.user import UserCreate, UserUpdate
+from typing import Optional, List
+from uuid import UUID
+from app.core.security import get_password_hash
+
+class UserService:
+    def get_user_by_id(self, db: Session, user_id: UUID) -> Optional[User]:
+        return db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+
+    def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
+        return db.query(User).filter(User.email == email, User.is_deleted == False).first()
+
+    def create_user(self, db: Session, user_in: UserCreate) -> User:
+        if self.get_user_by_email(db, user_in.email):
+            raise ValueError(f"User with email {user_in.email} already exists")
+            
+        db_user = User(
+            email=user_in.email,
+            hashed_password=get_password_hash(user_in.password),
+            full_name=user_in.full_name,
+        )
+        
+        if user_in.roles:
+            from app.models.auth import Role
+            for role_name in user_in.roles:
+                role = db.query(Role).filter(Role.name == role_name).first()
+                if role:
+                    db_user.roles.append(role)
+                    
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+
+    def update_user(self, db: Session, user_id: UUID, user_in: UserUpdate) -> Optional[User]:
+        db_user = self.get_user_by_id(db, user_id)
+        if not db_user:
+            return None
+            
+        update_data = user_in.model_dump(exclude_unset=True)
+        
+        if "email" in update_data and update_data["email"] != db_user.email:
+            if self.get_user_by_email(db, update_data["email"]):
+                raise ValueError(f"User with email {update_data['email']} already exists")
+        
+        if "password" in update_data:
+            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+            update_data.pop("password")
+            
+        for field, value in update_data.items():
+            setattr(db_user, field, value)
+            
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+
+    def get_users(self, db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+        return db.query(User).filter(User.is_deleted == False).offset(skip).limit(limit).all()
+
+    def delete_user(self, db: Session, user_id: UUID) -> bool:
+        db_user = self.get_user_by_id(db, user_id)
+        if db_user:
+            db_user.is_deleted = True
+            db.commit()
+            return True
+        return False
+
+user_service = UserService()
