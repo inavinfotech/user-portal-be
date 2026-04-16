@@ -10,3 +10,5 @@ env/
 .pytest_cache/
 static/uploads/*
 !static/uploads/.gitkeep
+.env.example
+/tests
