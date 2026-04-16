@@ -5,18 +5,29 @@ from app.api.v1.endpoints import users, auth, rbac, applications, external, sess
 from app.db.session import engine, Base
 from app.models import user, auth as auth_models, session, application  # Import all models
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. Create database tables
+    Base.metadata.create_all(bind=engine)
+    
+    # 2. Seed database (equivalent to seed_db.py logic)
+    from app.db.seeding import seed_db
+    seed_db()
+    
+    yield
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

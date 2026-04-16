@@ -14,8 +14,15 @@ import uuid
 router = APIRouter()
 
 # All endpoints here require API Key
-@router.post("/login", dependencies=[Depends(deps.verify_api_key)])
+@router.post("/login", 
+    dependencies=[Depends(deps.verify_api_key)],
+    summary="External Application Login",
+    description="Allows a registered application to authenticate users via email and password.")
 def external_login(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Standard OAuth2 password flow for external applications.
+    Returns an access token scoped for the authenticated user.
+    """
     user = auth_service.authenticate(db, email=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -26,8 +33,15 @@ def external_login(db: Session = Depends(get_db), form_data: OAuth2PasswordReque
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.get("/validate-token", response_model=TokenValidationResponse, dependencies=[Depends(deps.verify_api_key)])
+@router.get("/validate-token", 
+    response_model=TokenValidationResponse, 
+    dependencies=[Depends(deps.verify_api_key)],
+    summary="Validate JWT Token",
+    description="Verifies the validity and active session status of a provided JWT Bearer token.")
 def validate_token(payload: dict = Depends(deps.get_token_payload), db: Session = Depends(get_db)):
+    """
+    Checks if a token's JTI exists in active sessions and has not been revoked.
+    """
     token_jti = payload.get("jti")
     is_active = auth_service.is_session_active(db, token_jti)
     
@@ -38,13 +52,19 @@ def validate_token(payload: dict = Depends(deps.get_token_payload), db: Session 
         "expires_at": payload.get("exp")
     }
 
-@router.get("/get-user", response_model=ExternalUserResponse)
+@router.get("/get-user", 
+    response_model=ExternalUserResponse,
+    summary="Get User Information",
+    description="Retrieves profile and role information for a user by ID or Email.")
 def get_user_info(
     user_id: Optional[uuid.UUID] = None,
     email: Optional[str] = None,
     db: Session = Depends(get_db),
     app = Depends(deps.verify_api_credentials)
 ):
+    """
+    Required: API Credentials (API Key + API Secret).
+    """
     if not user_id and not email:
         raise HTTPException(status_code=400, detail="Either user_id or email must be provided")
     
@@ -64,13 +84,20 @@ def get_user_info(
         "roles": [role.name for role in user.roles]
     }
 
-@router.get("/get-permissions", response_model=PermissionResponse)
+@router.get("/get-permissions", 
+    response_model=PermissionResponse,
+    summary="Get User Permissions",
+    description="Retrieves a flat list of unique permissions assigned to a user via their roles.")
 def get_user_permissions(
     user_id: Optional[uuid.UUID] = None,
     email: Optional[str] = None,
     db: Session = Depends(get_db),
     app = Depends(deps.verify_api_credentials)
 ):
+    """
+    Required: API Credentials (API Key + API Secret).
+    Used for RBAC checks in downstream services.
+    """
     if not user_id and not email:
         raise HTTPException(status_code=400, detail="Either user_id or email must be provided")
         
@@ -99,7 +126,10 @@ def get_user_permissions(
         "permissions": unique_perms
     }
 
-@router.post("/create-user", response_model=ExternalUserResponse)
+@router.post("/create-user", 
+    response_model=ExternalUserResponse,
+    summary="Create External User",
+    description="Allows registered applications to register new users on the platform.")
 def create_external_user(
     user_in: UserCreate,
     db: Session = Depends(get_db),
