@@ -150,3 +150,32 @@ def create_external_user(
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/update-user",
+    response_model=ExternalUserResponse,
+    summary="Update External User",
+    description="Allows registered applications to update user information.")
+def update_external_user(
+    user_id: uuid.UUID,
+    user_in: dict, # Using dict to allow partial updates without strict UserUpdate schema if needed
+    db: Session = Depends(get_db),
+    app = Depends(deps.verify_api_credentials)
+):
+    """
+    Update an existing user on the portal.
+    """
+    try:
+        from app.schemas.user import UserUpdate
+        update_data = UserUpdate(**user_in)
+        user = user_service.update_user(db, user_id=user_id, user_in=update_data)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {
+            "user_id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "roles": [role.name for role in user.roles]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
