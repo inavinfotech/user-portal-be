@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, and_
 from sqlalchemy.orm import relationship
 from app.db.session import Base
 from app.models.base import BaseModelMixin
@@ -14,3 +14,4 @@ class User(Base, BaseModelMixin):
 
     roles = relationship("Role", secondary=user_roles, back_populates="users")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    addresses = relationship("UserAddress", back_populates="user", primaryjoin="and_(User.id==UserAddress.user_id, UserAddress.is_deleted==False)")

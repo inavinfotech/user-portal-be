@@ -14,4 +14,4 @@ class UserAddress(Base, BaseModelMixin):
     state = Column(String, nullable=False)
     postal_code = Column(String, nullable=False)
 
-    user = relationship("User", backref="addresses")
+    user = relationship("User", back_populates="addresses")

@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+from app.schemas.address import UserAddress
 
 class UserBase(BaseModel):
     email: EmailStr
@@ -30,6 +31,7 @@ class User(UserBase):
     updated_at: datetime
     is_deleted: bool
     roles: List[Role] = []
+    addresses: List[UserAddress] = []
 
     model_config = ConfigDict(from_attributes=True)
 
