@@ -43,13 +43,27 @@ def seed():
                 print(f"Created permission: {perm.resource}:{perm.action}")
             created_perms.append(perm)
 
-        # 2. Create Admin Role
+        # 2. Create Default Roles
         admin_role = db.query(Role).filter(Role.name == "admin").first()
         if not admin_role:
             admin_role = Role(name="admin", description="Full system access (Root Tier)")
             db.add(admin_role)
             db.flush()
             print("Created admin role")
+
+        learner_role = db.query(Role).filter(Role.name == "learner").first()
+        if not learner_role:
+            learner_role = Role(name="learner", description="LMS student/learner access role")
+            db.add(learner_role)
+            db.flush()
+            print("Created learner role")
+
+        consumer_role = db.query(Role).filter(Role.name == "consumer").first()
+        if not consumer_role:
+            consumer_role = Role(name="consumer", description="Main website consumer/customer role")
+            db.add(consumer_role)
+            db.flush()
+            print("Created consumer role")
         
         # 3. Assign all perms to admin role
         for perm in created_perms:
