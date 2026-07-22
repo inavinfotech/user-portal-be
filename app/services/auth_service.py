@@ -9,11 +9,20 @@ from app.schemas.user import UserCreate
 
 class AuthService:
     def authenticate(self, db: Session, email: str, password: str) -> Optional[User]:
-        db_user = db.query(User).filter(User.email == email, User.is_deleted == False).first()
+        db_user = db.query(User).filter(User.email == email).first()
         if not db_user:
             return None
         if not security.verify_password(password, db_user.hashed_password):
             return None
+
+        # Auto-recover soft-deleted user if correct password is provided
+        if db_user.is_deleted:
+            db_user.is_deleted = False
+            db_user.is_active = True
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+
         return db_user
 
     def create_session(self, db: Session, user_id: uuid.UUID, ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> UserSession:

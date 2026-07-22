@@ -3,19 +3,37 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 from typing import Optional, List
 from uuid import UUID
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 
 class UserService:
     def get_user_by_id(self, db: Session, user_id: UUID) -> Optional[User]:
         return db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
 
-    def get_user_by_email(self, db: Session, email: str) -> Optional[User]:
-        return db.query(User).filter(User.email == email, User.is_deleted == False).first()
+    def get_user_by_email(self, db: Session, email: str, include_deleted: bool = False) -> Optional[User]:
+        query = db.query(User).filter(User.email == email)
+        if not include_deleted:
+            query = query.filter(User.is_deleted == False)
+        return query.first()
 
     def create_user(self, db: Session, user_in: UserCreate) -> User:
-        if self.get_user_by_email(db, user_in.email):
-            raise ValueError(f"User with email {user_in.email} already exists")
+        existing_user = self.get_user_by_email(db, user_in.email, include_deleted=True)
+        if existing_user:
+            if not existing_user.is_deleted:
+                raise ValueError(f"User with email {user_in.email} already exists")
             
+            # Require the correct password to recover soft-deleted account
+            if not verify_password(user_in.password, existing_user.hashed_password):
+                raise ValueError("An account with this email exists in deactivated state. Correct password is required to recover the account.")
+
+            # Restore soft-deleted user
+            existing_user.is_deleted = False
+            existing_user.is_active = True
+            existing_user.full_name = user_in.full_name
+            db.add(existing_user)
+            db.commit()
+            db.refresh(existing_user)
+            return existing_user
+
         db_user = User(
             email=user_in.email,
             hashed_password=get_password_hash(user_in.password),
