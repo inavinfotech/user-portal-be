@@ -37,6 +37,12 @@ elif [ "$COMMAND" == "apply" ]; then
     python3 -c "
 import os, sys
 sys.path.insert(0, '.')
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from sqlalchemy import create_engine, inspect
 
 db_url = os.getenv('DATABASE_URL', 'sqlite:///./sql_app.db')
@@ -50,13 +56,19 @@ except Exception:
     pass
 sys.exit(0)
 " 2>/dev/null || STATUS=$?
+
     if [ $STATUS -eq 10 ]; then
         echo "Existing database detected without Alembic tracking. Stamping database with head revision..."
         alembic stamp head
     fi
 
     echo "Applying migrations to the database..."
-    alembic upgrade heads
+    if ! alembic upgrade heads; then
+        echo "Migration upgrade failed. Pre-existing untracked database detected. Stamping database with head revision..."
+        alembic stamp head
+        echo "Re-applying migrations..."
+        alembic upgrade heads
+    fi
 elif [ "$COMMAND" == "stamp" ]; then
     echo "Stamping the database with the current head..."
     alembic stamp head
