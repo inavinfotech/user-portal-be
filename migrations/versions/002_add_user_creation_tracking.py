@@ -23,7 +23,7 @@ def upgrade() -> None:
     columns = [col['name'] for col in inspector.get_columns('users')]
 
     if 'created_by_app_id' not in columns:
-        op.add_column('users', sa.Column('created_by_app_id', GUID(), sa.ForeignKey('applications.id', ondelete='SET NULL'), nullable=True))
+        op.add_column('users', sa.Column('created_by_app_id', GUID(), nullable=True))
     if 'creation_source' not in columns:
         op.add_column('users', sa.Column('creation_source', sa.String(), nullable=False, server_default='PORTAL_ADMIN'))
 
@@ -31,9 +31,19 @@ def upgrade() -> None:
     if 'ix_users_created_by_app_id' not in indexes:
         op.create_index(op.f('ix_users_created_by_app_id'), 'users', ['created_by_app_id'], unique=False)
 
+    if bind.dialect.name != 'sqlite':
+        op.create_foreign_key(
+            'fk_users_created_by_app_id_applications',
+            'users', 'applications',
+            ['created_by_app_id'], ['id'],
+            ondelete='SET NULL'
+        )
+
 
 def downgrade() -> None:
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.drop_index(op.f('ix_users_created_by_app_id'))
-        batch_op.drop_column('creation_source')
-        batch_op.drop_column('created_by_app_id')
+    bind = op.get_bind()
+    if bind.dialect.name != 'sqlite':
+        op.drop_constraint('fk_users_created_by_app_id_applications', 'users', type_='foreignkey')
+    op.drop_index(op.f('ix_users_created_by_app_id'), table_name='users')
+    op.drop_column('users', 'creation_source')
+    op.drop_column('users', 'created_by_app_id')
