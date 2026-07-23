@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -195,4 +195,38 @@ def update_external_user(
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/list-users",
+    response_model=List[ExternalUserResponse],
+    dependencies=[Depends(deps.verify_api_key)],
+    summary="List External Users",
+    description="Retrieves list of all users from central portal.")
+def list_external_users(
+    skip: int = 0,
+    limit: int = 100,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    from app.models.user import User as UserModel
+    query = db.query(UserModel).filter(UserModel.is_deleted == False)
+    if search:
+        query = query.filter(
+            (UserModel.full_name.ilike(f"%{search}%")) |
+            (UserModel.email.ilike(f"%{search}%"))
+        )
+    users = query.offset(skip).limit(limit).all()
+    return [
+        {
+            "user_id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "is_active": u.is_active,
+            "roles": [role.name for role in u.roles],
+            "created_by_app_id": u.created_by_app_id,
+            "created_by_app_name": u.created_by_app_name,
+            "creation_source": u.creation_source
+        }
+        for u in users
+    ]
+
 
