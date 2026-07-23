@@ -32,6 +32,29 @@ if [ "$COMMAND" == "create" ]; then
     echo "Generating new migration: $MESSAGE"
     alembic revision --autogenerate -m "$MESSAGE"
 elif [ "$COMMAND" == "apply" ]; then
+    echo "Checking database state for migrations..."
+    STATUS=0
+    python3 -c "
+import os, sys
+sys.path.insert(0, '.')
+from sqlalchemy import create_engine, inspect
+
+db_url = os.getenv('DATABASE_URL', 'sqlite:///./sql_app.db')
+try:
+    engine = create_engine(db_url)
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    if ('users' in tables or 'applications' in tables) and 'alembic_version' not in tables:
+        sys.exit(10)
+except Exception:
+    pass
+sys.exit(0)
+" 2>/dev/null || STATUS=$?
+    if [ $STATUS -eq 10 ]; then
+        echo "Existing database detected without Alembic tracking. Stamping database with head revision..."
+        alembic stamp head
+    fi
+
     echo "Applying migrations to the database..."
     alembic upgrade heads
 elif [ "$COMMAND" == "stamp" ]; then
