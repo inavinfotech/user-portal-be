@@ -10,8 +10,12 @@ class ExternalUserResponse(BaseModel):
     full_name: Optional[str]
     is_active: bool
     roles: List[str]
+    created_by_app_id: Optional[UUID] = None
+    created_by_app_name: Optional[str] = None
+    creation_source: Optional[str] = "PORTAL_ADMIN"
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class TokenValidationResponse(BaseModel):
     is_valid: bool

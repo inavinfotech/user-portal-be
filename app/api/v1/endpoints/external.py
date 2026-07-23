@@ -81,7 +81,10 @@ def get_user_info(
         "email": user.email,
         "full_name": user.full_name,
         "is_active": user.is_active,
-        "roles": [role.name for role in user.roles]
+        "roles": [role.name for role in user.roles],
+        "created_by_app_id": user.created_by_app_id,
+        "created_by_app_name": user.created_by_app_name,
+        "creation_source": user.creation_source
     }
 
 @router.get("/get-permissions", 
@@ -140,13 +143,21 @@ def create_external_user(
     registered applications with valid API credentials.
     """
     try:
-        user = user_service.create_user(db, user_in=user_in)
+        user = user_service.create_user(
+            db,
+            user_in=user_in,
+            created_by_app_id=app.id,
+            creation_source="EXTERNAL_API"
+        )
         return {
             "user_id": user.id,
             "email": user.email,
             "full_name": user.full_name,
             "is_active": user.is_active,
-            "roles": [role.name for role in user.roles]
+            "roles": [role.name for role in user.roles],
+            "created_by_app_id": user.created_by_app_id,
+            "created_by_app_name": user.created_by_app_name,
+            "creation_source": user.creation_source
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -177,7 +188,11 @@ def update_external_user(
             "email": user.email,
             "full_name": user.full_name,
             "is_active": user.is_active,
-            "roles": [role.name for role in user.roles]
+            "roles": [role.name for role in user.roles],
+            "created_by_app_id": user.created_by_app_id,
+            "created_by_app_name": user.created_by_app_name,
+            "creation_source": user.creation_source
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+

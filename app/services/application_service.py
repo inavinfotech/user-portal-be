@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.application import Application
-from app.schemas.application import ApplicationCreate
+from app.schemas.application import ApplicationCreate, ApplicationUpdate
 from typing import List, Optional
 from uuid import UUID
 
@@ -41,6 +41,25 @@ class ApplicationService:
         db.refresh(db_app)
         return db_app, api_secret
 
+    def update_application(self, db: Session, app_id: UUID, app_in: ApplicationUpdate) -> Optional[Application]:
+        db_app = db.query(Application).filter(Application.id == app_id).first()
+        if not db_app:
+            return None
+
+        update_data = app_in.model_dump(exclude_unset=True)
+        if "name" in update_data and update_data["name"] != db_app.name:
+            existing = db.query(Application).filter(Application.name == update_data["name"], Application.id != app_id).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Application with this name already exists")
+
+        for field, value in update_data.items():
+            setattr(db_app, field, value)
+
+        db.add(db_app)
+        db.commit()
+        db.refresh(db_app)
+        return db_app
+
     def regenerate_api_secret(self, db: Session, client_id: str) -> tuple[Optional[Application], Optional[str]]:
         db_app = db.query(Application).filter(Application.client_id == client_id).first()
         if db_app:
@@ -73,4 +92,5 @@ class ApplicationService:
         return False
 
 application_service = ApplicationService()
+
 

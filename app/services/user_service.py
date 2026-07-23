@@ -15,7 +15,13 @@ class UserService:
             query = query.filter(User.is_deleted == False)
         return query.first()
 
-    def create_user(self, db: Session, user_in: UserCreate) -> User:
+    def create_user(
+        self,
+        db: Session,
+        user_in: UserCreate,
+        created_by_app_id: Optional[UUID] = None,
+        creation_source: str = "PORTAL_ADMIN"
+    ) -> User:
         existing_user = self.get_user_by_email(db, user_in.email, include_deleted=True)
         if existing_user:
             if not existing_user.is_deleted:
@@ -29,6 +35,8 @@ class UserService:
             existing_user.is_deleted = False
             existing_user.is_active = True
             existing_user.full_name = user_in.full_name
+            existing_user.created_by_app_id = created_by_app_id
+            existing_user.creation_source = creation_source
             db.add(existing_user)
             db.commit()
             db.refresh(existing_user)
@@ -38,6 +46,8 @@ class UserService:
             email=user_in.email,
             hashed_password=get_password_hash(user_in.password),
             full_name=user_in.full_name,
+            created_by_app_id=created_by_app_id,
+            creation_source=creation_source,
         )
         
         if user_in.roles:
@@ -51,6 +61,7 @@ class UserService:
         db.commit()
         db.refresh(db_user)
         return db_user
+
 
     def update_user(self, db: Session, user_id: UUID, user_in: UserUpdate) -> Optional[User]:
         db_user = self.get_user_by_id(db, user_id)

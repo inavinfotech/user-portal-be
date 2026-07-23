@@ -30,8 +30,12 @@ class User(UserBase):
     created_at: datetime
     updated_at: datetime
     is_deleted: bool
+    created_by_app_id: Optional[UUID] = None
+    created_by_app_name: Optional[str] = None
+    creation_source: Optional[str] = "PORTAL_ADMIN"
     roles: List[Role] = []
     addresses: List[UserAddress] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 
