@@ -63,12 +63,22 @@ sys.exit(0)
     fi
 
     echo "Applying migrations to the database..."
-    if ! alembic upgrade heads; then
-        echo "Migration upgrade failed. Pre-existing untracked database detected. Stamping database with head revision..."
-        alembic stamp head
-        echo "Re-applying migrations..."
-        alembic upgrade heads
+    MIGRATE_LOG=$(mktemp)
+    if ! alembic upgrade heads >"$MIGRATE_LOG" 2>&1; then
+        if grep -q "already exists" "$MIGRATE_LOG"; then
+            echo "Pre-existing database detected. Stamping database with head revision..."
+            alembic stamp head
+            echo "Re-applying migrations..."
+            alembic upgrade heads
+        else
+            cat "$MIGRATE_LOG"
+            rm -f "$MIGRATE_LOG"
+            exit 1
+        fi
+    else
+        cat "$MIGRATE_LOG"
     fi
+    rm -f "$MIGRATE_LOG"
 elif [ "$COMMAND" == "stamp" ]; then
     echo "Stamping the database with the current head..."
     alembic stamp head
