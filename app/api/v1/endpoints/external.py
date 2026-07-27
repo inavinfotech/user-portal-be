@@ -229,4 +229,18 @@ def list_external_users(
         for u in users
     ]
 
+@router.delete("/delete-user",
+    summary="Delete User (Soft Delete)",
+    description="Soft deletes a user on central portal.")
+def delete_external_user(
+    user_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    app = Depends(deps.verify_api_credentials)
+):
+    success = user_service.delete_user(db, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "User soft deleted successfully from Central Portal"}
+
+
 
